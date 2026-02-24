@@ -1,32 +1,29 @@
+//안녕하세요
+//혹시이것을보고계시는분이작가님이라면돌아와주십시오
+//아니면저의허접한코드를그만봐주시길...
+
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// 🚨 lucide-react에서 에러를 유발하는 Spider를 빼고, 나머지 안전한 아이콘만 가져옵니다.
+
 import { Flame, ChefHat, Cookie, Utensils, Trash2, Skull, Heart, Smartphone } from 'lucide-react';
 
-// 🕷️ 에러가 절대 나지 않는 100% 안전한 커스텀 거미(Spider) 아이콘 컴포넌트
 const CustomSpider = ({ size = 24, color = "currentColor" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    {/* 몸통 */}
     <circle cx="12" cy="14" r="4" />
-    {/* 머리 */}
     <circle cx="12" cy="8" r="2" />
-    {/* 왼쪽 다리 4개 */}
     <path d="M8.5 12.5 L4 10" />
     <path d="M8 14 L3 14" />
     <path d="M8.5 15.5 L4 18" />
     <path d="M10 17 L7 21" />
-    {/* 오른쪽 다리 4개 */}
     <path d="M15.5 12.5 L20 10" />
     <path d="M16 14 L21 14" />
     <path d="M15.5 15.5 L20 18" />
     <path d="M14 17 L17 21" />
-    {/* 독니(더듬이) */}
     <path d="M11 6 L10 4" />
     <path d="M13 6 L14 4" />
   </svg>
 );
 
-// --- [사용자 설정] 이미지 경로 설정 ---
 const IMG_ASSETS = {
   P_IDLE: "./assets/p_idle.png",
   P_UP: "./assets/p_up.png",
@@ -63,6 +60,17 @@ const pixelFontStyle = `
   font-family: 'Galmuri11';
   src: url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri11.woff2') format('woff2');
 }
+html, body, #root {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+img {
+  -webkit-user-drag: none;
+}
 .font-pixel { 
   font-family: 'Press Start 2P', 'Galmuri11', cursive;
   line-height: 1.4;
@@ -83,10 +91,12 @@ const OVEN_COUNT = 3;
 const BAKE_TIME = 4000; 
 const BURN_TIME = 7000; 
 
+// 🎯 시각적 위치에 맞게 내부 좌표 미세 조정
 const POS = {
-  STATION_HAND: { x: 15, y: 30 },
-  BROTHER: { x: 90, y: 25 }, 
-  OVENS: [ { x: 35, y: 20 }, { x: 50, y: 20 }, { x: 65, y: 20 } ]
+  STATION_HAND: { x: 10, y: 25 },
+  BROTHER: { x: 85, y: 50 }, 
+  OVENS: [ { x: 25, y: 20 }, { x: 50, y: 20 }, { x: 75, y: 20 } ],
+  TRASH: { x: 10, y: 80 }
 };
 
 export default function PixelCookieTycoon() {
@@ -106,9 +116,7 @@ export default function PixelCookieTycoon() {
   const [burntEatenCount, setBurntEatenCount] = useState(0);
   const [burntCount, setBurntCount] = useState(0);
   
-  // 🔮 염력 사용 횟수 상태
   const [magicUsed, setMagicUsed] = useState(0);
-  
   const [brotherText, setBrotherText] = useState("오픈 준비!");
   
   const brotherTimeoutRef = useRef(null);
@@ -161,7 +169,6 @@ export default function PixelCookieTycoon() {
     return () => { clearInterval(timer); clearInterval(ovenTick); };
   }, [gameState]);
 
-  // 🚨 [수정됨] 화재 8번 발생 OR 염력 5번 사용 시 즉시 게임 종료 (엔딩 트리거)
   useEffect(() => {
     if (gameState === 'playing') {
       if (burntCount >= 8 || magicUsed >= 5) {
@@ -176,8 +183,12 @@ export default function PixelCookieTycoon() {
     if (gameState !== 'playing' || !kitchenRef.current) return;
     const rect = kitchenRef.current.getBoundingClientRect();
     
-    let targetX = ((e.clientX - rect.left) / rect.width) * 100;
-    let targetY = ((e.clientY - rect.top) / rect.height) * 100;
+    const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
+    if (clientX === undefined || clientY === undefined) return;
+    
+    let targetX = ((clientX - rect.left) / rect.width) * 100;
+    let targetY = ((clientY - rect.top) / rect.height) * 100;
     targetX = Math.max(5, Math.min(95, targetX));
     targetY = Math.max(20, Math.min(90, targetY));
 
@@ -204,13 +215,15 @@ export default function PixelCookieTycoon() {
     setTimeout(() => setFeedback(null), 1000);
   };
 
-  const checkDistance = (targetPos, limit = 20) => {
+  // 🎯 핵심! 모바일 환경을 고려하여 기본 상호작용 판정 범위를 35로 대폭 증가
+  const checkDistance = (targetPos, limit = 35) => {
     const dist = Math.sqrt(Math.pow(playerPos.x - targetPos.x, 2) + Math.pow(playerPos.y - targetPos.y, 2));
     return dist <= limit;
   };
 
   const interactBrother = () => {
-    if (!checkDistance(POS.BROTHER, 25)) { showFeedback("더 가까이!"); return; }
+    // 형은 덩치가 좀 있으니 범위를 40으로 더 여유롭게!
+    if (!checkDistance(POS.BROTHER, 40)) { showFeedback("더 가까이!"); return; }
     showFeedback("쪽! 😘");
     setBrotherMood('kissed'); 
     speakBrother("뭐하는거야...!!! 😳", 2000);
@@ -224,12 +237,12 @@ export default function PixelCookieTycoon() {
   const getDough = (isMagic) => {
     if (hand) { showFeedback("손이 꽉 찼다!"); return; }
     if (!isMagic) {
-      if (!checkDistance(POS.STATION_HAND)) { showFeedback("너무 멀어!"); return; }
+      if (!checkDistance(POS.STATION_HAND, 35)) { showFeedback("너무 멀어!"); return; }
       setHand('dough_hand');
       showFeedback("반죽 끙차!");
     } else {
       setHand('dough_magic');
-      setMagicUsed(p => p + 1); // 염력 사용 횟수 증가
+      setMagicUsed(p => p + 1); 
       showFeedback("염력 소환!");
     }
   };
@@ -239,14 +252,14 @@ export default function PixelCookieTycoon() {
     const ovenPos = POS.OVENS[index]; 
     if (oven.status === 'empty') {
       if (hand === 'dough_hand') {
-        if (!checkDistance(ovenPos)) { showFeedback("너무 멀어!"); return; }
+        if (!checkDistance(ovenPos, 35)) { showFeedback("너무 멀어!"); return; }
         setHand(null); startBaking(index);
       } else if (hand === 'dough_magic') {
         setHand(null); startBaking(index); showFeedback("슝~!");
       }
     } 
     else if ((oven.status === 'done' || oven.status === 'burnt') && !hand) {
-       if (!checkDistance(ovenPos)) { showFeedback("너무 멀어!"); return; }
+       if (!checkDistance(ovenPos, 35)) { showFeedback("너무 멀어!"); return; }
        setHand(oven.status === 'done' ? 'cookie' : 'burnt');
        resetOven(index);
        showFeedback(oven.status === 'done' ? "잘 익었다!" : "앗 뜨거!");
@@ -264,9 +277,21 @@ export default function PixelCookieTycoon() {
     newOvens[index] = { status: 'empty', progress: 0 };
     setOvens(newOvens);
   };
+  
+   const interactTrash = () => {
+    if (!hand) {
+      showFeedback("버릴 게 없다!");
+      return;
+    }
+    if (!checkDistance(POS.TRASH, 35)) { 
+      showFeedback("너무 멀어!"); 
+      return; 
+    }
+    setHand(null);
+    showFeedback("쓰레기통 슛~!");
+  };
 
  const submitCookie = () => {
-    //	제대로 팔았을 때 형의 랜덤 대사 
     const successDialogues = [
       "좋아, 다음!",
       "제법이네.",
@@ -275,21 +300,18 @@ export default function PixelCookieTycoon() {
       "왜 잘하지? 수상한데?",
     ];
 
-    // 탄 쿠키를 형에게 제출했을 때 랜덤 대사
     const angryDialogues = [
       "장난하냐? 버려!",
       "이걸 팔라고?",
       "쓰레기통에나 넣어!",
       "다시 해와!",
       "너나 먹어라!",
-	  
     ];
 
     if (hand === 'cookie') {
       setScore(p => p + 1); 
       setHand(null); 
       
-      // 성공 대사 중 하나를 랜덤으로 뽑아서 출력 (1.5초 유지)
       const randomText = successDialogues[Math.floor(Math.random() * successDialogues.length)];
       speakBrother(randomText, 1500); 
       
@@ -297,17 +319,16 @@ export default function PixelCookieTycoon() {
     } else if (hand === 'burnt') {
       setHand(null); 
       
-      // 분노 대사 중 하나를 랜덤으로 뽑아서 출력 (화난 표정 true)
       const randomAngryText = angryDialogues[Math.floor(Math.random() * angryDialogues.length)];
       speakBrother(randomAngryText, 2000, true); 
     } else { 
       showFeedback("줄 게 없다"); 
     }
   };
+
  const eatCookie = (e) => {
     e.stopPropagation();
 
-    //  형의 랜덤 대사 목록 
     const normalDialogues = [
       "그만 좀 먹어!",
       "재료 없다고!",
@@ -331,26 +352,20 @@ export default function PixelCookieTycoon() {
       setHand(null);
       showFeedback("맛있다!");
       
-      // 정상 쿠키 먹을 때마다 랜덤 대사 출력 (true = 화난 표정)
       const randomText = normalDialogues[Math.floor(Math.random() * normalDialogues.length)];
       speakBrother(randomText, 2000, true);
 
     } else if (hand === 'burnt') {
       setBurntEatenCount(p => p + 1); 
-      
-      //  탄 쿠키를 먹으면 화재 횟수(burntCount)를 1 차감합니다! (최소 0까지만)
       setBurntCount(p => Math.max(0, p - 1)); 
-
       setHand(null);
-      
-      // 피드백
       showFeedback("으윽... (화재 은폐!)");
       
-      // 탄 쿠키 먹을 때마다 랜덤 대사 출력
       const randomBurntText = burntDialogues[Math.floor(Math.random() * burntDialogues.length)];
       speakBrother(randomBurntText, 2000, true);
     }
   };
+
   const getBrotherImage = () => {
     switch(brotherMood) {
         case 'kissed': return IMG_ASSETS.BRO_KISSED;
@@ -360,7 +375,6 @@ export default function PixelCookieTycoon() {
     }
   };
 
-  // 🚨 순서에 따라 우선순위 적용됨)
   const getEndingStats = () => {
      if (magicUsed >= 5) return { title: "질서의 천벌", desc: "염력을 너무 많이 써서일까요? 어디에선가 천둥 소리가 들려옵니다...", color: "bg-[#7209b7]", emoji: "⚡" };
      if (burntCount >= 8) return { 
@@ -376,38 +390,45 @@ export default function PixelCookieTycoon() {
   emoji: "🔥" 
 };
      if (burntEatenCount >= 3) return { title: "신성-암세포", desc: "숯덩이를 너무 많이 먹어 실려갔습니다. 형이 칼리스터를 찾고 있는 것 같습니다...", color: "bg-[#4a4e69]", emoji: "🐛" };
-     if (eatenCount >= 6) return { 
+     if (eatenCount >= 4) return { 
        title: "뚱됒모니움", 
        desc: "쿠키를 너무 많이 먹어서 굴러다니게 되었습니다... 동그란 털동물이 될 것만 같습니다.", 
        color: "bg-[#f28482]", 
        isPigEnding: true 
      };
-     if (score >= 13) return { title: "천국의 맛", desc: "다크렐름 최고의 쿠키 가게가 되었습니다! 어? 이상한 앵무새가 갑자기 찾아왔습니다...", color: "bg-[#f4a261]", emoji: "🦜" };
+     if (score >= 12) return { title: "질서있는 맛", desc: "다크렐름 최고의 쿠키 가게가 되었습니다! 어? 이상한 앵무새가 갑자기 찾아왔습니다...", color: "bg-[#f4a261]", emoji: "🦜" };
      return { title: "폐업 위기", desc: "매출이 저조합니다. 형이 파시아를 어디 뒀는지 찾고 있습니다.", color: "bg-[#000080]", emoji: "📉" };
   };
 
   return (
-    <div className="w-full h-screen bg-[#3d2b1f] flex items-center justify-center font-pixel overflow-hidden select-none touch-none p-2 md:p-6">
+    <div 
+      className="w-full h-[100dvh] bg-[#3d2b1f] flex items-center justify-center font-pixel overflow-hidden select-none touch-none p-1 md:p-4"
+      style={{
+        paddingLeft: 'max(env(safe-area-inset-left), 4px)',
+        paddingRight: 'max(env(safe-area-inset-right), 4px)',
+        paddingBottom: 'max(env(safe-area-inset-bottom), 4px)'
+      }}
+    >
       <style dangerouslySetInnerHTML={{ __html: pixelFontStyle }} />
 
       <div className="fixed inset-0 z-[9999] bg-[#3d2b1f] flex-col items-center justify-center text-white hidden portrait:flex">
          <Smartphone size={64} className="mb-6 animate-pulse rotate-90" />
-         <h2 className="text-xl md:text-2xl font-bold mb-2">가로 모드로 돌려주세요!</h2>
-         <p className="text-xs md:text-sm opacity-80 text-center px-4">이 게임은 가로 화면에 최적화되어 있습니다.<br/>(화면 회전 잠금을 해제해 주세요)</p>
+         <h2 className="text-xl font-bold mb-2">가로 모드로 돌려주세요!</h2>
+         <p className="text-xs opacity-80 text-center px-4">이 게임은 가로 화면에 최적화되어 있습니다.<br/>(화면 회전 잠금을 해제해 주세요)</p>
       </div>
 
-      <div className="relative w-full max-w-[900px] aspect-[4/3] max-h-screen bg-[#fdf0d5] pixel-border flex flex-col p-2 md:p-4">
+       <div className="relative w-full h-full max-w-[1200px] max-h-[100dvh] bg-[#fdf0d5] pixel-border flex flex-col p-2 md:p-4">
         
-        <div className="h-12 md:h-16 flex justify-between items-center mb-2 md:mb-4 px-1 md:px-2 z-10 shrink-0">
-          <div className="flex gap-2 md:gap-4">
-             <div className="bg-white px-2 py-1 md:px-4 md:py-2 pixel-border-sm flex items-center gap-1 md:gap-2 text-[10px] md:text-sm text-[#3d2b1f]">
-                <ChefHat className="w-4 h-4 md:w-5 md:h-5"/> <span>{score} PACKS</span>
+        <div className="h-[12vh] min-h-[40px] max-h-[60px] flex justify-between items-center mb-2 px-2 z-10 shrink-0">
+          <div className="flex gap-2">
+             <div className="bg-white px-3 py-1.5 md:px-4 md:py-2 pixel-border-sm flex items-center gap-1.5 text-xs md:text-base text-[#3d2b1f]">
+                <ChefHat className="w-5 h-5"/> <span>{score} PACKS</span>
              </div>
-             <div className="bg-[#f28482] text-white px-2 py-1 md:px-4 md:py-2 pixel-border-sm flex items-center gap-1 md:gap-2 text-[10px] md:text-sm">
-                <Flame className="w-4 h-4 md:w-5 md:h-5" fill="white"/> <span>{burntCount}/8</span>
+             <div className="bg-[#f28482] text-white px-3 py-1.5 md:px-4 md:py-2 pixel-border-sm flex items-center gap-1.5 text-xs md:text-base">
+                <Flame className="w-5 h-5" fill="white"/> <span>{burntCount}/8</span>
              </div>
           </div>
-          <div className="bg-[#3d2b1f] text-[#81b29a] px-3 py-1 md:px-6 md:py-2 pixel-border-sm text-sm md:text-xl tracking-widest">
+          <div className="bg-[#3d2b1f] text-[#81b29a] px-4 py-1.5 md:px-6 md:py-2 pixel-border-sm text-base md:text-2xl tracking-widest">
             {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
           </div>
         </div>
@@ -419,61 +440,62 @@ export default function PixelCookieTycoon() {
           >
              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(#3d2b1f 1px, transparent 1px), linear-gradient(90deg, #3d2b1f 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
 
-             <div className="absolute left-2 md:left-6 top-1/4 flex flex-col gap-3 md:gap-6 scale-75 md:scale-100 origin-left z-10">
+             <div className="absolute left-[3%] top-[15%] flex flex-col gap-[12vh] z-10">
                 <PixelStation 
-                  label="HAND" color="bg-[#F4C2C2]" icon={<Utensils size={32} color="white"/>} 
+                  label="HAND" color="bg-[#F4C2C2]" icon={<Utensils size={24} color="white"/>} 
                   onPointerDown={(e) => {e.stopPropagation(); getDough(false)}} 
                 />
-                {/* 🕷️ 커스텀 Spider 컴포넌트 적용 완료 */}
                 <PixelStation 
-                  label="TERES" color="bg-[#90e0ef]" icon={<CustomSpider size={32} color="#3d2b1f"/>} 
+                  label="TERES" color="bg-[#90e0ef]" icon={<CustomSpider size={24} color="#3d2b1f"/>} 
                   onPointerDown={(e) => {e.stopPropagation(); getDough(true)}} 
                 />
              </div>
 
-             <div className="absolute top-2 md:top-6 left-1/2 -translate-x-1/2 flex gap-2 md:gap-4 scale-75 md:scale-100 origin-top z-10">
+             <div className="absolute left-[3%] bottom-[12%] z-10">
+                <PixelStation 
+                  label="TRASH" color="bg-[#6c757d]" icon={<Trash2 size={24} color="white"/>} 
+                  onPointerDown={(e) => {e.stopPropagation(); interactTrash();}} 
+                />
+             </div>
+
+             <div className="absolute top-[8%] left-[45%] -translate-x-1/2 w-[55%] flex justify-between z-10 px-[2%]">
                 {ovens.map((oven, idx) => (
                   <PixelOven key={idx} status={oven.status} progress={oven.progress} onPointerDown={(e) => { e.stopPropagation(); interactOven(idx); }} />
                 ))}
              </div>
 
-             <div className="absolute right-0 top-12 md:top-20 bottom-0 w-24 md:w-40 bg-[#ddb892] border-l-4 border-[#3d2b1f] flex flex-col items-center pt-2 md:pt-4 z-10">
-                <div className="absolute -left-24 md:-left-36 top-10 w-24 md:w-32 bg-white text-[#3d2b1f] text-[8px] md:text-xs p-1 md:p-2 pixel-border-sm text-center break-keep">
+             <div className="absolute right-0 top-0 bottom-0 w-[20vw] min-w-[90px] max-w-[160px] bg-[#ddb892] border-l-4 border-[#3d2b1f] flex flex-col items-center justify-center pt-8 md:pt-16 z-10 pb-4 shadow-[-5px_0_15px_rgba(0,0,0,0.1)]">
+                
+                <div className="relative w-[22vw] min-w-[90px] max-w-[160px] bg-white text-[#3d2b1f] text-[10px] md:text-sm p-3 pixel-border-sm text-center break-keep mb-3 font-bold">
                    {brotherText}
-                   <div className="absolute top-2 -right-2 md:-right-3 w-2 h-2 md:w-3 md:h-3 bg-white border-t-2 border-r-2 border-[#3d2b1f] rotate-45"></div>
+                   <div className="absolute -bottom-2 right-1/2 translate-x-1/2 w-2 h-2 md:w-3 md:h-3 bg-white border-b-2 border-r-2 border-[#3d2b1f] rotate-45"></div>
                 </div>
 
-                <div className="w-20 h-20 md:w-36 md:h-36 relative mt-2 cursor-pointer hover:scale-105 transition-transform" onPointerDown={(e) => { e.stopPropagation(); interactBrother(); }}>
-                    <img src={getBrotherImage()} alt="Brother" className="w-full h-full object-contain pixel-art drop-shadow-md" />
+                <div className="w-[12vw] h-[12vw] min-w-[60px] min-h-[60px] max-w-[100px] max-h-[100px] relative mb-2 cursor-pointer hover:scale-105 transition-transform" onPointerDown={(e) => { e.stopPropagation(); interactBrother(); }}>
+                    <img src={getBrotherImage()} alt="Brother" draggable={false} className="w-full h-full object-contain pixel-art drop-shadow-md" />
                     {brotherMood === 'kissed' && <Heart className="absolute top-0 right-0 text-pink-500 animate-bounce w-4 h-4 md:w-6 md:h-6" fill="currentColor"/>}
                 </div>
-                <div className="text-[12px] md:text-xs -mt-1 md:-mt-2 font-bold mb-2 md:mb-4 text-[#3d2b1f]">형아</div>
+                <div className="text-[10px] md:text-xs font-bold mb-auto text-[#3d2b1f]">형아</div>
 
-                <button onPointerDown={(e) => { e.stopPropagation(); submitCookie(); }} className="w-16 h-12 md:w-28 md:h-20 bg-[#81b29a] text-white pixel-border pixel-btn flex flex-col items-center justify-center mb-2 md:mb-4 hover:bg-[#6fa189]">
-                  <ChefHat className="w-4 h-4 md:w-6 md:h-6" />
-                  <span className="text-[6px] md:text-[10px] mt-1">SERVE</span>
+                <button onPointerDown={(e) => { e.stopPropagation(); submitCookie(); }} className="w-[16vw] h-[10vw] min-w-[70px] min-h-[45px] max-w-[130px] max-h-[70px] bg-[#81b29a] text-white pixel-border pixel-btn flex flex-col items-center justify-center hover:bg-[#6fa189]">
+                  <ChefHat className="w-4 h-4 md:w-6 md:h-6 mb-1" />
+                  <span className="text-[8px] md:text-xs font-bold">SERVE</span>
                 </button>
-
-                {hand === 'burnt' && (
-                  <button onPointerDown={(e) => { e.stopPropagation(); setHand(null); }} className="w-10 h-10 md:w-16 md:h-16 bg-[#3d2b1f] text-white pixel-border pixel-btn flex items-center justify-center hover:bg-red-600">
-                    <Trash2 className="w-4 h-4 md:w-6 md:h-6"/>
-                  </button>
-                )}
              </div>
-
-             <div className="absolute w-20 h-20 md:w-32 md:h-32 pointer-events-none z-20 transition-all duration-200 ease-out" style={{ left: `${playerPos.x}%`, top: `${playerPos.y}%`, transform: 'translate(-50%, -50%)' }}>
+             
+             <div className="absolute w-[14vw] h-[14vw] min-w-[60px] min-h-[60px] max-w-[120px] max-h-[120px] pointer-events-none z-20 transition-all duration-200 ease-out" style={{ left: `${playerPos.x}%`, top: `${playerPos.y}%`, transform: 'translate(-50%, -50%)' }}>
                 <AnimatePresence>
-                  {feedback && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: -20 }} exit={{ opacity: 0 }} className="absolute -top-6 md:-top-10 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] md:text-[10px] bg-white text-[#3d2b1f] border-2 border-[#3d2b1f] px-1 md:px-2 py-0.5 md:py-1 z-30">
-                      {feedback}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+  {feedback && (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: -15 }} exit={{ opacity: 0 }} className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs md:text-base bg-white text-[#3d2b1f] border-2 border-[#3d2b1f] px-3 py-1.5 z-30 font-bold shadow-md rounded-sm">
+      {feedback}
+    </motion.div>
+  )}
+</AnimatePresence>
 
                 <div className="relative w-full h-full">
-                   <img src={playerMood === 'happy' ? IMG_ASSETS[playerDir.replace('P_', 'P_HAPPY_')] : (IMG_ASSETS[playerDir] || IMG_ASSETS.P_IDLE)} alt="Player" className="w-full h-full object-contain pixel-art drop-shadow-lg" />
+                   <img src={playerMood === 'happy' ? IMG_ASSETS[playerDir.replace('P_', 'P_HAPPY_')] : (IMG_ASSETS[playerDir] || IMG_ASSETS.P_IDLE)} alt="Player" draggable={false} className="w-full h-full object-contain pixel-art drop-shadow-lg" />
                    {hand && (
-                      <div className={`absolute top-1/2 w-5 h-5 md:w-8 md:h-8 animate-bounce z-10 -translate-y-1/2 ${['P_LEFT', 'P_UP_LEFT', 'P_DOWN_LEFT'].includes(playerDir) ? 'left-1 md:left-2' : 'right-1 md:right-2'}`}>
+                      <div className={`absolute top-1/2 w-[5vw] h-[5vw] min-w-[16px] min-h-[16px] max-w-[28px] max-h-[28px] animate-bounce z-10 -translate-y-1/2 ${['P_LEFT', 'P_UP_LEFT', 'P_DOWN_LEFT'].includes(playerDir) ? 'left-0' : 'right-0'}`}>
                         {hand === 'dough_hand' && <div className="w-full h-full bg-[#f4d58d] border-2 border-[#3d2b1f]" />}
                         {hand === 'dough_magic' && <div className="w-full h-full bg-[#90e0ef] border-2 border-[#3d2b1f] shadow-[0_0_10px_#90e0ef]" />}
                         {hand === 'cookie' && <div className="w-full h-full bg-[#d4a373] rounded-full border-2 border-[#3d2b1f]" />}
@@ -481,12 +503,12 @@ export default function PixelCookieTycoon() {
                       </div>
                    )}
                    {(hand === 'cookie' || hand === 'burnt') && (
-                     <button onPointerDown={eatCookie} className="absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-auto bg-[#f28482] text-white text-[6px] md:text-[8px] px-1 md:px-2 py-0.5 md:py-1 border border-[#3d2b1f] md:border-2 hover:bg-[#e07a5f]">
+                     <button onPointerDown={eatCookie} className="absolute -bottom-3 left-1/2 -translate-x-1/2 pointer-events-auto bg-[#f28482] text-white text-[8px] md:text-xs px-2 py-1 border border-[#3d2b1f] hover:bg-[#e07a5f] shadow-lg font-bold">
                        {hand === 'cookie' ? 'EAT' : 'EAT?'}
                      </button>
                    )}
                 </div>
-                <div className="absolute bottom-0 md:-bottom-1 left-1/2 -translate-x-1/2 w-10 md:w-16 h-1.5 md:h-3 bg-[#3d2b1f] opacity-30 rounded-[50%] -z-10"></div>
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[50%] h-[10%] bg-[#3d2b1f] opacity-30 rounded-[50%] -z-10"></div>
              </div>
 
              <div className="absolute inset-0 pointer-events-none scanlines opacity-30 z-30"></div>
@@ -494,21 +516,21 @@ export default function PixelCookieTycoon() {
         )}
 
         {gameState === 'intro' && (
-           <div className="absolute inset-2 md:inset-4 z-50 bg-[#fdf0d5] pixel-border flex flex-col items-center justify-center gap-4 md:gap-8 p-4">
-              <h1 className="text-2xl md:text-6xl text-center leading-relaxed text-[#3d2b1f] drop-shadow-[2px_2px_0_rgba(129,178,154,1)] md:drop-shadow-[4px_4px_0_rgba(129,178,154,1)]">
+           <div className="absolute inset-2 z-50 bg-[#fdf0d5] pixel-border flex flex-col items-center justify-center gap-6 p-4">
+              <h1 className="text-3xl md:text-6xl text-center leading-relaxed text-[#3d2b1f] drop-shadow-[3px_3px_0_rgba(129,178,154,1)]">
                 PQ's<br/><span className="text-[#f28482]">SWEET BAKERY</span>
               </h1>
-              <div className="bg-white p-3 md:p-6 pixel-border-sm text-[8px] md:text-xs leading-loose max-w-xs md:max-w-md text-[#3d2b1f]">
-                 <p className="border-b-2 border-[#f28482] inline-block mb-1 md:mb-2">★ 게임하는 법 ★</p>
+              <div className="bg-white p-4 md:p-6 pixel-border-sm text-[10px] md:text-sm leading-loose max-w-md text-[#3d2b1f]">
+                 <p className="border-b-2 border-[#f28482] inline-block mb-2 font-bold">★ 게임하는 법 ★</p>
                  <p>1. [클릭/터치] 로 움직이세요</p>
                  <p>2. 도우를 가져와서 오븐에 넣고 형한테 가져다주세요</p>
-                 <p className="text-[#f28482] mt-1 md:mt-2">★ 손반죽(PINK)은 가까이 가야 잡힙니다!</p>
+                 <p className="text-[#f28482] mt-2">★ 손반죽(PINK)은 가까이 가야 잡힙니다!</p>
                  <p className="text-[#90e0ef] font-bold drop-shadow-[1px_1px_0_#3d2b1f]">★ 염력반죽(BLUE)은 어디에서나 잡힙니다!</p>
-                 <p className="text-[#81b29a] font-bold mt-1 md:mt-2">★ HINT: 형한테 가까이 다가가 터치하면 뽀뽀!</p>
+                 <p className="text-[#81b29a] font-bold mt-2">★ HINT: 형한테 가까이 다가가 터치하면 뽀뽀!</p>
               </div>
-              <button onClick={() => setGameState('playing')} className="px-6 py-3 md:px-8 md:py-4 bg-[#89CFF0] text-white text-sm md:text-xl pixel-border pixel-btn hover:bg-[#89CFF0]">
-  START BAKING
-</button>
+              <button onClick={() => setGameState('playing')} className="px-8 py-4 bg-[#89CFF0] text-white text-base md:text-2xl font-bold pixel-border pixel-btn hover:bg-[#89CFF0]">
+                 START BAKING
+              </button>
            </div>
         )}
 
@@ -520,11 +542,12 @@ export default function PixelCookieTycoon() {
   );
 }
 
+// 🎯 시각적 크기(오븐, 역/아이콘) 축소 및 정돈
 function PixelStation({ label, color, icon, onPointerDown }) {
   return (
-    <div onPointerDown={onPointerDown} className={`w-16 h-16 md:w-24 md:h-24 ${color} pixel-border pixel-btn flex flex-col items-center justify-center cursor-pointer group hover:brightness-110`}>
-      <div className="mb-1 md:mb-2 scale-75 md:scale-110 group-hover:scale-125 transition-transform">{icon}</div>
-      <span className="text-[6px] md:text-[10px] font-bold text-white drop-shadow-md">{label}</span>
+    <div onPointerDown={onPointerDown} className={`w-[10vw] h-[10vw] min-w-[50px] min-h-[50px] max-w-[80px] max-h-[80px] ${color} pixel-border pixel-btn flex flex-col items-center justify-center cursor-pointer group hover:brightness-110 shadow-lg`}>
+      <div className="mb-1 scale-75 md:scale-100 group-hover:scale-110 transition-transform">{icon}</div>
+      <span className="text-[8px] md:text-[10px] font-bold text-white drop-shadow-md tracking-wider">{label}</span>
     </div>
   );
 }
@@ -536,20 +559,20 @@ function PixelOven({ status, progress, onPointerDown }) {
   else if (status === 'burnt') { bg = "bg-[#3d2b1f]"; light = "bg-red-600 animate-ping"; }
 
   return (
-    <div onPointerDown={onPointerDown} className={`w-16 h-20 md:w-24 md:h-32 ${bg} pixel-border relative flex flex-col items-center p-1 md:p-2 cursor-pointer hover:mt-[-4px] transition-all`}>
-       <div className="w-full h-8 md:h-12 bg-[#3d2b1f] border-2 border-white/20 mb-1 md:mb-2 flex items-center justify-center overflow-hidden">
-          {status === 'baking' && <Flame className="text-orange-500 animate-bounce w-4 h-4 md:w-6 md:h-6"/>}
-          {status === 'done' && <Cookie className="text-[#f4d58d] animate-pulse w-4 h-4 md:w-6 md:h-6"/>}
-          {status === 'burnt' && <Skull className="text-gray-400 w-4 h-4 md:w-6 md:h-6"/>}
+    <div onPointerDown={onPointerDown} className={`w-[12vw] h-[16vw] min-w-[65px] min-h-[85px] max-w-[100px] max-h-[140px] ${bg} pixel-border relative flex flex-col items-center p-1.5 md:p-2 cursor-pointer hover:-translate-y-1 transition-transform shadow-xl`}>
+       <div className="w-full h-[35%] bg-[#3d2b1f] border-2 border-white/20 mb-1.5 flex items-center justify-center overflow-hidden">
+          {status === 'baking' && <Flame className="text-orange-500 animate-bounce w-5 h-5 md:w-6 md:h-6"/>}
+          {status === 'done' && <Cookie className="text-[#f4d58d] animate-pulse w-5 h-5 md:w-6 md:h-6"/>}
+          {status === 'burnt' && <Skull className="text-gray-400 w-5 h-5 md:w-6 md:h-6"/>}
        </div>
-       <div className="w-full h-2 md:h-4 bg-[#3d2b1f] border border-gray-500 p-0.5 flex items-center">
+       <div className="w-full h-[10%] bg-[#3d2b1f] border border-gray-500 p-0.5 flex items-center mb-auto">
           {status !== 'empty' && status !== 'burnt' && <div className="h-full bg-[#f28482]" style={{ width: `${(progress / BAKE_TIME) * 100}%`, maxWidth: '100%' }} />}
           {status === 'burnt' && <div className="w-full h-full bg-red-600 animate-pulse" />}
        </div>
-       <div className={`absolute top-1 right-1 md:top-2 md:right-2 w-2 h-2 md:w-3 md:h-3 ${light} border border-black`}></div>
-       <div className="mt-auto flex gap-1">
-          <div className="w-2 h-2 md:w-4 md:h-4 bg-white/20 border border-black rounded-full"></div>
-          <div className="w-2 h-2 md:w-4 md:h-4 bg-white/20 border border-black rounded-full"></div>
+       <div className={`absolute top-1.5 right-1.5 w-2 h-2 md:w-3 md:h-3 ${light} border border-black shadow-inner`}></div>
+       <div className="mt-auto flex gap-1 w-full justify-center">
+          <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-white/20 border border-black rounded-full"></div>
+          <div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-white/20 border border-black rounded-full"></div>
        </div>
     </div>
   );
@@ -557,35 +580,33 @@ function PixelOven({ status, progress, onPointerDown }) {
 
 function EndingScreen({ stats, ending, onRetry }) {
   return (
-    <div className={`absolute inset-2 md:inset-4 z-50 ${ending.color} pixel-border flex flex-col items-center justify-center text-white p-4 md:p-8 text-center overflow-hidden`}>
+    <div className={`absolute inset-2 z-50 ${ending.color} pixel-border flex flex-col items-center justify-center text-white p-4 md:p-8 text-center overflow-hidden`}>
        
-       {/* 👇 수정된 부분: 뚱됒모니움 엔딩일 때 상하좌우 GIF 렌더링, 아닐 때는 일반 이모지 */}
        {ending.isPigEnding ? (
          <>
-           <img src={IMG_ASSETS.PIG_TOP} alt="top" className="absolute top-4 left-1/2 -translate-x-1/2 w-16 md:w-24 animate-bounce" />
-           <img src={IMG_ASSETS.PIG_BOTTOM} alt="bottom" className="absolute bottom-4 left-1/2 -translate-x-1/2 w-16 md:w-24 animate-bounce" />
-           <img src={IMG_ASSETS.PIG_LEFT} alt="left" className="absolute left-4 top-1/2 -translate-y-1/2 w-16 md:w-24 animate-bounce" />
-           <img src={IMG_ASSETS.PIG_RIGHT} alt="right" className="absolute right-4 top-1/2 -translate-y-1/2 w-16 md:w-24 animate-bounce" />
+           <img src={IMG_ASSETS.PIG_TOP} alt="top" draggable={false} className="absolute top-4 left-1/2 -translate-x-1/2 w-20 md:w-32 animate-bounce" />
+           <img src={IMG_ASSETS.PIG_BOTTOM} alt="bottom" draggable={false} className="absolute bottom-4 left-1/2 -translate-x-1/2 w-20 md:w-32 animate-bounce" />
+           <img src={IMG_ASSETS.PIG_LEFT} alt="left" draggable={false} className="absolute left-4 top-1/2 -translate-y-1/2 w-20 md:w-32 animate-bounce" />
+           <img src={IMG_ASSETS.PIG_RIGHT} alt="right" draggable={false} className="absolute right-4 top-1/2 -translate-y-1/2 w-20 md:w-32 animate-bounce" />
          </>
        ) : (
-         <div className="text-4xl md:text-6xl mb-2 md:mb-4 drop-shadow-[2px_2px_0_rgba(0,0,0,0.5)] md:drop-shadow-[4px_4px_0_rgba(0,0,0,0.5)]">
+         <div className="text-5xl md:text-8xl mb-4 drop-shadow-[3px_3px_0_rgba(0,0,0,0.5)]">
            {ending.emoji}
          </div>
        )}
 
-       {/* 아래 요소들에 z-10을 주어 GIF 위로 올라오게 합니다 */}
-       <h2 className="text-xl md:text-3xl mb-2 md:mb-4 drop-shadow-md z-10">{ending.title}</h2>
-       <p className="text-[10px] md:text-sm mb-4 md:mb-8 max-w-xs md:max-w-md bg-black/30 p-2 md:p-4 border-2 border-white/50 leading-loose z-10">
+       <h2 className="text-2xl md:text-4xl font-bold mb-4 drop-shadow-md z-10">{ending.title}</h2>
+       <p className="text-xs md:text-base mb-6 max-w-sm md:max-w-xl bg-black/40 p-4 border-2 border-white/50 leading-loose z-10 font-bold tracking-wide">
          {ending.desc}
        </p>
        
-       <div className="flex flex-wrap gap-2 md:gap-4 justify-center text-[8px] md:text-xs mb-4 md:mb-8 z-10">
-          <div className="bg-black/50 p-1 md:p-2 border border-white">SOLD: {stats.score}</div>
-          <div className="bg-black/50 p-1 md:p-2 border border-white text-pink-300">ATE: {stats.eatenCount}</div>
-          <div className="bg-black/50 p-1 md:p-2 border border-white text-gray-400">ATE(BURNT): {stats.burntEatenCount}</div>
+       <div className="flex flex-wrap gap-3 justify-center text-[10px] md:text-sm mb-8 z-10 font-bold">
+          <div className="bg-black/60 p-2 md:p-3 border-2 border-white">SOLD: {stats.score}</div>
+          <div className="bg-black/60 p-2 md:p-3 border-2 border-white text-pink-300">ATE: {stats.eatenCount}</div>
+          <div className="bg-black/60 p-2 md:p-3 border-2 border-white text-gray-400">ATE(BURNT): {stats.burntEatenCount}</div>
        </div>
 
-       <button onClick={onRetry} className="px-4 py-2 md:px-6 md:py-3 bg-white text-[#3d2b1f] text-sm md:text-base pixel-border hover:bg-gray-200 active:translate-y-1 active:shadow-none z-10">
+       <button onClick={onRetry} className="px-6 py-3 md:px-8 md:py-4 bg-white text-[#3d2b1f] text-sm md:text-xl font-bold pixel-border hover:bg-gray-200 active:translate-y-1 active:shadow-none z-10">
          TRY AGAIN
        </button>
     </div>
