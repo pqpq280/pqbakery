@@ -6,6 +6,7 @@ export default defineConfig({
     react(),
 	
     tailwindcss(), // ★ 
-	  base: '/pqbakery/',
+	 
   ],
+   base: '/pqbakery/',
 })
